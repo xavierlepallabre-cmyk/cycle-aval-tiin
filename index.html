@@ -1,0 +1,595 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cycle aval TIIN</title>
+<meta name="description" content="Cycle aval du combustible pour le Bac Pro TIIN : traitement à La Hague, recyclage, déchets et stockage (Andra). Version de relecture, fonctionne hors connexion.">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12204A" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="fonts/lexend.css">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cycle aval">
+<script>/* Hors ligne : enregistrement du service worker et proposition de mise à jour */
+if('serviceWorker' in navigator&&location.protocol.startsWith('http')){addEventListener('load',()=>{
+ let accepted=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(accepted)location.reload()});
+ navigator.serviceWorker.register('./service-worker.js').then(reg=>{
+  const offer=()=>{if(reg.waiting&&navigator.serviceWorker.controller){const bar=document.getElementById('updateBar');bar.hidden=false;document.getElementById('updateBtn').onclick=()=>{accepted=true;reg.waiting.postMessage({type:'ACTIVATE_UPDATE'})}}};
+  offer();reg.addEventListener('updatefound',()=>{const w=reg.installing;w&&w.addEventListener('statechange',()=>{if(w.state==='installed')offer()})});
+ }).catch(console.warn);});}
+</script>
+<script>/* Thème appliqué avant l’affichage, pour éviter un éclair clair/sombre */
+try{const t=localStorage.getItem('aval-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
+<style>
+/* Coquille d’application : barre unique en haut, barre d’onglets en bas sur mobile, accueil en orbite.
+   Mêmes jetons que les parcours (marine, bleu acier) pour une continuité visuelle. */
+:root{color-scheme:dark;
+ --bg:#0A1430;--bg2:#0E1A3C;--panel:#12204A;--panel2:#1A2C5C;--glass:rgba(18,32,74,.86);--border:#2B3F72;--border2:#35508A;
+ --text:#EEF2FA;--muted:#A9B6D3;--faint:#7D8CB0;--accent:#9DB8F5;--accent2:#9DB8F5;--btn:#1A2C5C;--btn-active:#24396F;
+ --brand:#1A3C89;--brand-text:#9DB8F5;--primary:#2E5BC4;--orange:#F18A52;--orange-text:#F6A06E;--surface:#12204A;
+ --c-amont:#ffd43b;--c-rep:#ff9b4f;--c-hague:#f783ac;--c-andra:#63e6be;--c-surete:#b197fc;--c-acc:#ff6b6b;--ok:#63e6be;
+ --shadow:0 18px 50px rgba(0,0,0,.45);--grid:rgba(157,184,245,.06);
+ --font:Lexend,system-ui,-apple-system,"Segoe UI",sans-serif;--schema-font:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;--mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+ --bar-h:60px;--tab-h:64px}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){color-scheme:light;
+ --bg:#F4F6FA;--bg2:#EAF0F8;--panel:#FFFFFF;--panel2:#EAF0F8;--glass:rgba(255,255,255,.92);--border:#D5DDEA;--border2:#C3CEDF;
+ --text:#0E1B36;--muted:#4A5A75;--faint:#6B7A93;--accent:#1A3C89;--accent2:#1A3C89;--btn:#F4F6FA;--btn-active:#DCE5F3;
+ --brand:#1A3C89;--brand-text:#1A3C89;--primary:#1A3C89;--orange:#F18A52;--orange-text:#A8501C;--surface:#FFFFFF;
+ --c-amont:#b08900;--c-rep:#d9480f;--c-hague:#d6336c;--c-andra:#099268;--c-surete:#7048e8;--c-acc:#e03131;--ok:#099268;
+ --shadow:0 1px 2px #0E1B360D,0 6px 24px #0E1B360F;--grid:rgba(26,60,137,.06)}}
+:root[data-theme="light"]{color-scheme:light;
+ --bg:#F4F6FA;--bg2:#EAF0F8;--panel:#FFFFFF;--panel2:#EAF0F8;--glass:rgba(255,255,255,.92);--border:#D5DDEA;--border2:#C3CEDF;
+ --text:#0E1B36;--muted:#4A5A75;--faint:#6B7A93;--accent:#1A3C89;--accent2:#1A3C89;--btn:#F4F6FA;--btn-active:#DCE5F3;
+ --brand:#1A3C89;--brand-text:#1A3C89;--primary:#1A3C89;--orange:#F18A52;--orange-text:#A8501C;--surface:#FFFFFF;
+ --c-amont:#b08900;--c-rep:#d9480f;--c-hague:#d6336c;--c-andra:#099268;--c-surete:#7048e8;--c-acc:#e03131;--ok:#099268;
+ --shadow:0 1px 2px #0E1B360D,0 6px 24px #0E1B360F;--grid:rgba(26,60,137,.06)}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 var(--font);display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+button,a{font:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+svg.i{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- Barre d’application ---------- */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--surface);z-index:30}
+.appbar{position:relative;z-index:20;display:flex;align-items:center;gap:14px;min-height:var(--bar-h);
+ padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+ background:var(--surface);border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:14px;background:none;border:0;padding:2px 6px 2px 0;border-radius:12px;white-space:nowrap;min-width:0;text-align:left}
+.school-logo{display:block;background:#fff;border-radius:8px;padding:4px 7px;flex-shrink:0;border:1px solid var(--border);line-height:0}
+.school-logo img{height:46px;width:auto;display:block}
+.brand-sep{width:1px;height:34px;background:var(--border)}
+.brand-text{display:flex;flex-direction:column;min-width:0;line-height:1.1;overflow:hidden}
+.brand-text .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--orange-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand-text strong{font-size:21px;font-weight:800;letter-spacing:-.03em;color:var(--brand-text);white-space:nowrap}
+.brand-text strong span{color:var(--orange-text)}
+.brand:hover strong{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+.sr-only{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.bar-accent{position:relative;z-index:20;height:3px;background:linear-gradient(90deg,var(--orange) 0 34%,var(--brand) 34% 100%)}
+@media(max-width:1180px){.brand-sep,.brand-text .eyebrow{display:none}}
+@media(max-width:900px){.brand-sep,.brand-text .eyebrow{display:block}.brand-sep{height:28px}}
+@media(max-width:560px){.school-logo img{height:36px}.school-logo{padding:3px 5px}.brand{gap:10px}.brand-text strong{font-size:18px}.brand-text .eyebrow{font-size:8.5px;letter-spacing:.06em}}
+@media(max-width:430px){.brand-sep{display:none}.brand-text strong{font-size:16.5px;letter-spacing:-.035em}}
+@media(max-width:350px){.brand-text .eyebrow{display:none}}
+.switch{position:relative;display:flex;gap:2px;padding:4px;border-radius:999px;background:var(--btn);border:1px solid var(--border);margin:0 auto;min-width:0}
+.switch .ind{position:absolute;top:4px;left:0;height:calc(100% - 8px);border-radius:999px;background:var(--panel);box-shadow:0 2px 10px rgba(0,0,0,.18),inset 0 0 0 1px var(--border2);transition:transform .35s cubic-bezier(.3,.7,.2,1),width .35s cubic-bezier(.3,.7,.2,1),opacity .2s;opacity:0}
+.switch button{position:relative;z-index:1;display:flex;align-items:center;gap:7px;border:0;background:none;border-radius:999px;padding:7px 12px;font-size:13.5px;color:var(--muted);white-space:nowrap;transition:color .2s}
+.switch button svg{color:var(--c)}
+.switch button:hover,.switch button[aria-current="page"]{color:var(--text)}
+.switch .sep{width:1px;margin:6px 4px;background:var(--border2);z-index:1}
+.actions{display:flex;gap:6px;flex:none}
+.ib{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;border:1px solid var(--border);background:var(--btn);color:var(--text)}
+.ib:hover{border-color:var(--accent)}
+.ib[aria-pressed="true"]{background:var(--btn-active);border-color:var(--accent)}
+
+/* ---------- Zone principale ---------- */
+main{position:relative;flex:1;min-height:0}
+.frame{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg);opacity:0;transform:translateY(10px) scale(.995);transition:opacity .35s ease,transform .35s ease;pointer-events:none}
+.frame.on{opacity:1;transform:none;pointer-events:auto}
+.loader{position:absolute;inset:0;display:grid;place-items:center;z-index:5;pointer-events:none;opacity:0;transition:opacity .2s}
+.loader.on{opacity:1}
+.loader span{width:44px;height:44px;border-radius:50%;border:3px solid var(--border2);border-top-color:var(--accent);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- Accueil ---------- */
+#home{position:absolute;inset:0;overflow:auto;scroll-behavior:smooth;transition:opacity .35s}
+#home.off{opacity:0;pointer-events:none}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--border);
+ background:radial-gradient(900px 500px at 78% 40%,color-mix(in srgb,var(--accent) 16%,transparent),transparent 70%),radial-gradient(600px 400px at 10% 0%,color-mix(in srgb,var(--c-surete) 12%,transparent),transparent 70%),var(--bg2)}
+.hero::before{content:"";position:absolute;inset:0;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse at 70% 45%,#000 30%,transparent 75%);-webkit-mask-image:radial-gradient(ellipse at 70% 45%,#000 30%,transparent 75%);pointer-events:none}
+.hero .wrap{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,560px);gap:28px;align-items:center;padding-block:44px 36px}
+.kicker{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--orange-text)}
+h1{font-size:clamp(30px,4.2vw,50px);line-height:1.08;letter-spacing:-.03em;margin:14px 0 14px;text-wrap:balance;font-weight:800;color:var(--brand-text)}
+h1 em{font-style:normal;color:var(--orange-text)}
+.lead{font-size:17px;color:var(--muted);max-width:52ch;margin:0}
+.cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}
+.btn{display:inline-flex;align-items:center;gap:9px;border-radius:14px;padding:12px 18px;font-weight:650;font-size:15px;border:1px solid var(--border2);background:var(--panel);color:var(--text);text-decoration:none;transition:transform .15s,border-color .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-1px);border-color:var(--accent)}
+.btn.primary{background:var(--primary);border-color:transparent;color:#fff;box-shadow:0 8px 22px color-mix(in srgb,var(--primary) 30%,transparent)}
+.btn.primary:hover{border-color:transparent;filter:brightness(1.08)}
+.btn small{font-weight:500;opacity:.85}
+
+/* Orbite */
+.orbit{position:relative;width:100%;max-width:560px;margin-left:auto;aspect-ratio:1}
+.orbit svg{width:100%;height:100%;overflow:visible}
+.orbit .track{fill:none;stroke:var(--border2);stroke-width:2;stroke-dasharray:2 8}
+.orbit .arc{fill:none;stroke-width:12;stroke-linecap:round;opacity:.9}
+.orbit .particle{fill:#fff;filter:url(#glow)}
+.st{cursor:pointer;outline:none}
+.st .halo{fill:var(--c);opacity:.12;transition:opacity .25s,transform .25s;transform-box:fill-box;transform-origin:center}
+.st .disc{fill:var(--panel);stroke:var(--c);stroke-width:3;transition:transform .25s;transform-box:fill-box;transform-origin:center}
+.st .ico{color:var(--c);fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.st text{fill:var(--text);font:700 15px var(--schema-font);pointer-events:none}
+.st text.s{fill:var(--muted);font:500 12px var(--schema-font)}
+.st:hover .halo,.st:focus-visible .halo,.st.hot .halo{opacity:.3;transform:scale(1.25)}
+.st:hover .disc,.st:focus-visible .disc{transform:scale(1.07)}
+.st .seen{fill:var(--ok);stroke:var(--panel);stroke-width:3}
+.shield path.body{fill:url(#shieldGrad);filter:drop-shadow(0 8px 22px color-mix(in srgb,var(--c-surete) 45%,transparent))}
+.pulse{animation:pulse 3.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:.35}50%{transform:scale(1.12);opacity:.1}}
+.caption{position:absolute;left:50%;bottom:2%;transform:translateX(-50%);width:max-content;max-width:100%;text-align:center;font-size:13px;color:var(--muted);min-height:20px}
+.caption b{color:var(--text)}
+
+/* Sections */
+.sec{padding-block:38px 8px}
+.sec h2{font-size:22px;letter-spacing:-.02em;margin:0 0 4px}
+.sec p.sub{margin:0 0 18px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.card{position:relative;display:flex;flex-direction:column;gap:10px;text-align:left;background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:18px;min-width:0;overflow:hidden;transition:transform .2s,border-color .2s,box-shadow .25s}
+.card::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:linear-gradient(140deg,var(--c),transparent 45%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.0;transition:opacity .25s;pointer-events:none}
+.card:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.card:hover::before{opacity:1}
+.card .top{display:flex;align-items:center;gap:12px}
+.tile{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);border:1px solid color-mix(in srgb,var(--c) 35%,transparent);flex:none}
+.tile svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.card .num{font:600 11.5px var(--mono);color:var(--c);letter-spacing:.06em;text-transform:uppercase}
+.card h3{margin:0;font-size:18px;letter-spacing:-.01em}
+.card p{margin:0;color:var(--muted);font-size:14px;flex:1}
+.card .foot{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--faint);border-top:1px solid var(--border);padding-top:10px}
+.card .go{display:inline-flex;align-items:center;gap:6px;color:var(--text);font-weight:600}
+.card .go svg{transition:transform .2s}.card:hover .go svg{transform:translateX(3px)}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--ok);background:color-mix(in srgb,var(--ok) 13%,transparent);border-radius:999px;padding:2px 8px}
+.card.wide{grid-column:span 1}
+/* Fil des matières */
+.flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:1px solid var(--border);border-radius:18px;overflow:hidden;background:var(--panel)}
+.flow div{position:relative;padding:14px 16px 14px 18px;border-right:1px solid var(--border);min-width:0}
+.flow div:last-child{border-right:0}
+.flow div::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+.flow b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--c)}
+.flow span{font:13px var(--mono);color:var(--text)}
+.foot-note{padding-block:26px 40px;color:var(--faint);font-size:12.5px}
+.foot-note p{margin:4px 0;max-width:90ch}
+.foot-note .credit{margin-top:12px;line-height:1.5}
+/* Logos : fichiers officiels sur plaque blanche, comme dans Nucléa */
+.logo-plate{display:inline-grid;place-items:center;background:#fff;border:1px solid var(--border);border-radius:12px;padding:8px 12px;line-height:0}
+.logo-plate img{display:block;height:44px;width:auto}
+.hero-logo img{height:52px}
+.hero-id{display:flex;flex-direction:column;align-items:flex-start;gap:14px}
+.bars{display:inline-flex;align-items:flex-end;gap:3px;height:16px}
+.bars i{display:block;width:4px;border-radius:2px;background:var(--orange)}
+.bars i:nth-child(1){height:10px}.bars i:nth-child(2){height:16px}.bars i:nth-child(3){height:12px}
+.tiin-logos{display:flex;gap:10px;flex-wrap:wrap}
+.tiin-logos .logo-plate img{height:48px}
+.foot-id{display:flex;align-items:center;gap:20px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:20px;margin-bottom:10px}
+.foot-id p{margin:0;color:var(--muted);font-size:13px;max-width:52ch}
+@media(max-width:560px){.hero-logo img{height:44px}.tiin-logos .logo-plate img{height:40px}}
+
+kbd{font:11px var(--mono);border:1px solid var(--border2);border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--muted)}
+
+/* ---------- Accueil soigné : un seul message, le cycle en vedette ---------- */
+.lead-m,.sm-only{display:none}
+.progress{display:flex;align-items:center;gap:12px;margin-top:26px;font-size:13px;color:var(--muted)}
+.pbar{display:flex;gap:4px}
+.pbar i{width:22px;height:6px;border-radius:3px;background:color-mix(in srgb,var(--c) 22%,var(--border))}
+.pbar i.on{background:var(--c)}
+@media(max-width:900px){
+ .hero::before{opacity:.5}
+ .hero .wrap{display:flex;flex-direction:column;align-items:stretch;padding-block:22px 22px;gap:0}
+ .hero .wrap>div:first-child{display:contents}
+ .hero h1{order:1;font-size:clamp(25px,7vw,34px);margin:0 0 8px}
+ .hero .lead{display:none}
+ .hero .lead-m{display:block;order:2;margin:0;color:var(--muted);font-size:14.5px}
+ .hero .orbit{order:3;max-width:360px;width:100%;margin:-6px auto -4px}
+ .hero .caption{display:none}
+ .hero .cta{order:4;margin-top:4px}
+ .hero .cta .btn.primary{flex:1 1 100%;justify-content:center;padding:14px 18px}
+ .hero .cta .btn:not(.primary){display:none} /* le simulateur reste à un geste : station REP du cycle */
+ .hero .progress{order:5;margin-top:14px;justify-content:center;flex-wrap:wrap;gap:8px 12px}
+ .lg-only{display:none}.sm-only{display:inline}
+}
+
+/* ---------- Schéma d’accueil du cycle aval ---------- */
+.orbit .arc{fill:none;stroke-width:10;stroke-linecap:round;opacity:.9}
+.orbit .arc.back{stroke-width:5;stroke-dasharray:2 12;opacity:.85}
+.orbit .flab text{fill:var(--muted);font:500 12.5px var(--schema-font)}
+.st.info{cursor:help}
+.st.big text{font-size:17px}
+/* ---------- Relecture ---------- */
+.rev-btn{width:auto;padding:0 12px;gap:7px;display:inline-flex;align-items:center;font-weight:600;font-size:13.5px;color:var(--orange-text);border-color:color-mix(in srgb,var(--orange) 55%,var(--border))}
+.rev-btn .i{color:var(--orange)}
+.rev-n{min-width:20px;height:20px;border-radius:999px;background:var(--orange);color:#fff;font-size:11.5px;display:grid;place-items:center;padding:0 6px}
+.rev{position:fixed;z-index:50;top:calc(var(--bar-h) + 3px + env(safe-area-inset-top,0px));right:0;bottom:0;width:min(420px,100%);display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--border);box-shadow:var(--shadow)}
+.rev-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
+.rev-head h2{display:flex;align-items:center;gap:8px;margin:0;font-size:18px;color:var(--brand-text)}
+.rev-head h2 .i{color:var(--orange)}
+.rev-body{flex:1;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.rev-f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600;color:var(--muted)}
+.rev-f input,.rev-f textarea{font:15px var(--font);color:var(--text);background:var(--bg);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;resize:vertical}
+.rev-f input:focus,.rev-f textarea:focus{outline:2px solid var(--orange);outline-offset:1px}
+.rev-ctx{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--orange) 10%,var(--panel2));border:1px dashed color-mix(in srgb,var(--orange) 50%,var(--border))}
+.rev-ctx span{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--orange-text)}
+.rev-ctx b{font-size:14px;line-height:1.35}
+.rev-kinds{display:flex;flex-wrap:wrap;gap:6px}
+.rev-kinds button{border:1px solid var(--border2);background:var(--btn);border-radius:999px;padding:7px 12px;font-size:13px;min-height:36px}
+.rev-kinds button[aria-checked="true"]{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600}
+.rev-h3{margin:8px 0 0;font-size:14px;color:var(--muted);font-weight:600}
+.rev-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.rev-list li{border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:var(--panel2);font-size:14px}
+.rev-list .w{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin-bottom:4px}
+.rev-list .w b{color:var(--text)}
+.rev-list .k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--orange-text)}
+.rev-list p{margin:2px 0 0;white-space:pre-wrap}
+.rev-list .del{border:0;background:none;color:var(--muted);font-size:12px;text-decoration:underline;padding:4px 0;margin-top:4px}
+.rev-foot{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border)}
+.rev-foot .btn{padding:10px 14px;font-size:14px}
+.btn.ghost{border-color:transparent;background:none;color:var(--muted)}
+.relect .howto{margin:0 0 18px;padding-left:22px;max-width:80ch;display:grid;gap:8px}
+.relect .howto b{color:var(--brand-text)}
+body.rev-open main{margin-right:min(420px,100%)}
+@media(max-width:900px){
+ body.rev-open main{margin-right:0}
+ .rev{top:auto;left:0;width:100%;height:min(78vh,640px);border-left:0;border-top:1px solid var(--border);border-radius:18px 18px 0 0;bottom:0;z-index:60}
+ .rev-lbl{display:none}.rev-btn{padding:0;width:40px;position:relative}
+ .rev-n{position:absolute;top:-6px;right:-6px}
+}
+
+/* ---------- Barre d’onglets mobile ---------- */
+.tabbar{display:none}
+@media(max-width:900px){
+ .switch{display:none}
+ .tabbar{display:grid;grid-template-columns:repeat(3,1fr);position:relative;z-index:20;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+ .tabbar button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:var(--tab-h);border:0;background:none;color:var(--muted);font-size:10.5px;font-weight:600;padding:6px 0;position:relative}
+ .tabbar button svg{width:22px;height:22px}
+ .tabbar button[aria-current="page"]{color:var(--text)}
+ .tabbar button[aria-current="page"] svg{color:var(--c)}
+ .tabbar button[aria-current="page"]::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:var(--c)}
+ .hero .wrap{grid-template-columns:1fr;padding-block:26px 30px;gap:8px}
+ .orbit{max-width:420px;margin:0 auto 18px}
+ .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .flow{grid-template-columns:repeat(2,minmax(0,1fr))}.flow div:nth-child(2){border-right:0}.flow div:nth-child(-n+2){border-bottom:1px solid var(--border)}
+ #openBtn{display:none}
+}
+@media(max-width:560px){
+ .brand .bt small{display:none}
+ .grid{grid-template-columns:1fr}
+ .lead{font-size:16px}
+ .flow{grid-template-columns:1fr}.flow div{border-right:0;border-bottom:1px solid var(--border)}.flow div:last-child{border-bottom:0}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* Mise à jour */
+.updbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px) + var(--tabpad,0px));z-index:40;display:flex;align-items:center;gap:12px;flex-wrap:wrap;max-width:calc(100% - 32px);background:var(--panel);color:var(--text);border:1px solid var(--accent);border-radius:14px;padding:10px 14px;box-shadow:var(--shadow);font-size:13.5px}
+.updbar button{font-weight:650;border:0;background:var(--primary);color:#fff;border-radius:999px;padding:7px 14px}
+@media(max-width:900px){.updbar{--tabpad:var(--tab-h)}}
+</style>
+</head><body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+ <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5h4v5"/></symbol>
+ <symbol id="i-amont" viewBox="0 0 24 24"><path d="M2.5 20 9 9l4 6 3-4 5.5 9z"/><path d="M7.5 20l2-3"/></symbol>
+ <symbol id="i-rep" viewBox="0 0 24 24"><path d="M5 20v-8a7 7 0 0 1 14 0v8"/><path d="M3 20h18"/><path d="M12 8v5"/><path d="M9.5 13h5"/></symbol>
+ <symbol id="i-hague" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 0 1 13.2-4.9"/><path d="M19.5 12a7.5 7.5 0 0 1-13.2 4.9"/><path d="M18 3.5v4h-4"/><path d="M6 20.5v-4h4"/></symbol>
+ <symbol id="i-andra" viewBox="0 0 24 24"><path d="M12 3.5 20.5 8 12 12.5 3.5 8z"/><path d="m3.5 12 8.5 4.5 8.5-4.5"/><path d="m3.5 16 8.5 4.5 8.5-4.5"/></symbol>
+ <symbol id="i-surete" viewBox="0 0 24 24"><path d="M12 3 19.5 6v6c0 4.3-3.2 7.6-7.5 9-4.3-1.4-7.5-4.7-7.5-9V6z"/><path d="m8.8 12.2 2.3 2.3 4.2-4.6"/></symbol>
+ <symbol id="i-acc" viewBox="0 0 24 24"><path d="M12 3.5 21.5 20h-19z"/><path d="M12 10v4.5"/><path d="M12 17.3v.2"/></symbol>
+ <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></symbol>
+ <symbol id="i-recy" viewBox="0 0 24 24"><path d="M9.5 3.5h5l1 3h-7z"/><rect x="7.5" y="6.5" width="9" height="14" rx="2"/><path d="M10 11h4M10 15h4"/></symbol>
+ <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+ <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+ <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></symbol>
+ <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></symbol>
+ <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></symbol>
+ <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+ <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+ <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+ <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+</svg>
+
+<header class="appbar">
+ <button class="brand" id="homeBtn" type="button" aria-label="Accueil Cycle aval TIIN">
+  <span class="school-logo"><img src="icons/logo-tocqueville.png" alt="Lycée Tocqueville — Métiers de l’industrie et du nucléaire" width="541" height="465"></span>
+  <span class="brand-sep" aria-hidden="true"></span>
+  <span class="brand-text"><span class="eyebrow">Cycle aval du combustible · Bac Pro TIIN</span><strong>Cycle aval <span>TIIN</span></strong><small class="sr-only" id="where">Accueil</small></span>
+ </button>
+ <nav class="switch" id="switch" aria-label="Parcours"><span class="ind" id="ind"></span></nav>
+ <div class="actions">
+  <button class="ib" id="pauseBtn" type="button" aria-label="Mettre en pause les animations" title="Animations" hidden><svg class="i"><use href="#i-pause"/></svg></button>
+  <button class="ib rev-btn" id="revBtn" type="button" aria-label="Relecture : noter une remarque" title="Relecture (Alt+R)"><svg class="i"><use href="#i-pen"/></svg><span class="rev-lbl">Relecture</span><span class="rev-n" id="revN" hidden>0</span></button>
+  <button class="ib" id="themeBtn" type="button" aria-label="Changer de thème" title="Thème clair / sombre"><svg class="i"><use href="#i-sun"/></svg></button>
+  <a class="ib" id="openBtn" href="#" target="_blank" rel="noopener" aria-label="Ouvrir ce parcours dans un onglet" title="Ouvrir dans un onglet" hidden><svg class="i"><use href="#i-open"/></svg></a>
+ </div>
+</header>
+<div class="bar-accent" aria-hidden="true"></div>
+
+<main id="main">
+ <div class="loader" id="loader"><span></span></div>
+ <section id="home" aria-label="Accueil">
+  <div class="hero">
+   <div class="wrap">
+    <div>
+          <h1>Après le réacteur : <em>traiter, recycler, stocker.</em></h1>
+     <p class="lead">Suivez le combustible usé de sa sortie du réacteur jusqu’au stockage : traitement à La Hague, séparation de l’uranium, du plutonium et des produits de fission, recyclage, puis conditionnement et stockage des déchets par l’Andra.</p>
+     <p class="lead-m">Touchez une étape du cycle pour l’ouvrir.</p>
+     <div class="cta">
+      <button class="btn primary" type="button" id="ctaGo"><span id="ctaTxt">Commencer par La Hague</span><svg class="i"><use href="#i-arrow"/></svg></button>
+      <button class="btn" type="button" id="ctaRev"><svg class="i" style="color:var(--orange)"><use href="#i-pen"/></svg>Mode relecture</button>
+     </div>
+     <div class="progress" aria-live="polite">
+      <div class="pbar" id="pbar" aria-hidden="true"></div>
+      <span id="seenCount">0 parcours ouvert sur 2</span>
+     </div>
+    </div>
+    <div class="orbit" id="orbit">
+     <svg viewBox="0 0 560 560" role="group" aria-label="Le cycle aval : choisissez une étape">
+      <defs>
+       <filter id="glow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+       <path id="f1" d="M132 138 Q190 196 236 238"/>
+       <path id="f2" d="M324 238 Q370 196 428 138"/>
+       <path id="f3" d="M420 92 C350 30 210 30 140 92"/>
+       <path id="f4" d="M280 336 L280 416"/>
+      </defs>
+      <g class="links">
+       <use href="#f1" class="arc" stroke="var(--c-rep)"/>
+       <use href="#f2" class="arc" stroke="var(--c-amont)"/>
+       <use href="#f3" class="arc back" stroke="var(--c-amont)"/>
+       <use href="#f4" class="arc" stroke="var(--c-andra)"/>
+      </g>
+      <g class="flab">
+       <text x="200" y="174">assemblages usés</text>
+       <text x="360" y="174" text-anchor="end">U et Pu</text>
+       <text x="280" y="34" text-anchor="middle">MOX, URT : retour en réacteur</text>
+       <text x="294" y="384">colis de déchets</text>
+      </g>
+      <g id="particles"></g>
+      <g id="stations">
+       <g class="st info" data-info="reacteur" tabindex="0" role="button" aria-label="Réacteur : le combustible usé" style="--c:var(--c-rep)"><circle class="halo" cx="110" cy="118" r="42"/><circle class="disc" cx="110" cy="118" r="30"/><svg class="ico" x="95" y="103" width="30" height="30" viewBox="0 0 24 24"><use href="#i-rep"/></svg><text x="110" y="176" text-anchor="middle">Réacteur</text><text class="s" x="110" y="192" text-anchor="middle">combustible usé</text></g>
+       <g class="st info" data-info="recyclage" tabindex="0" role="button" aria-label="Recyclage : MOX et uranium de retraitement" style="--c:var(--c-amont)"><circle class="halo" cx="450" cy="118" r="42"/><circle class="disc" cx="450" cy="118" r="30"/><svg class="ico" x="435" y="103" width="30" height="30" viewBox="0 0 24 24"><use href="#i-recy"/></svg><text x="450" y="176" text-anchor="middle">Recyclage</text><text class="s" x="450" y="192" text-anchor="middle">MOX · URT</text></g>
+       <g class="st big" data-go="hague" tabindex="0" role="button" aria-label="La Hague : traitement du combustible usé" style="--c:var(--c-hague)"><circle class="halo pulse" cx="280" cy="280" r="70"/><circle class="disc" cx="280" cy="280" r="50"/><svg class="ico" x="256" y="256" width="48" height="48" viewBox="0 0 24 24"><use href="#i-hague"/></svg><text x="360" y="276">La Hague</text><text class="s" x="360" y="294">traitement</text></g>
+       <g class="st big" data-go="andra" tabindex="0" role="button" aria-label="Andra : gestion et stockage des déchets" style="--c:var(--c-andra)"><circle class="halo" cx="280" cy="462" r="56"/><circle class="disc" cx="280" cy="462" r="40"/><svg class="ico" x="260" y="442" width="40" height="40" viewBox="0 0 24 24"><use href="#i-andra"/></svg><text x="346" y="458">Andra</text><text class="s" x="346" y="476">déchets, stockage</text></g>
+      </g>
+     </svg>
+     <div class="caption" id="caption">Touchez La Hague ou l’Andra pour ouvrir le parcours</div>
+    </div>
+   </div>
+  </div>
+
+  <div class="wrap">
+   <section class="sec" aria-labelledby="h-cycle">
+    <h2 id="h-cycle">Deux parcours</h2>
+    <p class="sub">Chaque parcours a un synoptique cliquable, des vues détaillées animées et une lecture guidée étape par étape, organisée en chapitres.</p>
+    <div class="grid" id="cards"></div>
+   </section>
+   <section class="sec relect" aria-labelledby="h-rev">
+    <h2 id="h-rev">Pour le relecteur</h2>
+    <p class="sub">Cette version est destinée à être relue par un spécialiste du cycle aval. Merci d’avance pour vos corrections.</p>
+    <ol class="howto">
+     <li><b>Ouvrez un parcours</b> et avancez vue par vue. Chaque vue est numérotée (par exemple 2.1) et chaque étape aussi.</li>
+     <li><b>Touchez « Relecture »</b> en haut à droite quand quelque chose est faux, imprécis ou mal dit. L’endroit exact (parcours, vue, étape) est noté tout seul : il suffit d’écrire la remarque.</li>
+     <li><b>À la fin, téléchargez le fichier</b> de remarques et renvoyez-le à l’auteur. Les remarques restent sur cet appareil tant que vous ne les effacez pas, même hors connexion.</li>
+    </ol>
+    <button class="btn primary" type="button" data-rev="open"><svg class="i"><use href="#i-pen"/></svg>Ouvrir la relecture</button>
+   </section>
+   <section class="sec" aria-labelledby="h-flow">
+    <h2 id="h-flow">Le fil de la matière</h2>
+    <p class="sub">Ce que devient le combustible usé d’une étape à l’autre.</p>
+    <div class="flow">
+     <div style="--c:var(--c-rep)"><b>Réacteur</b><span>assemblages usés → piscine</span></div>
+     <div style="--c:var(--c-hague)"><b>Traitement</b><span>combustible usé → U, Pu, PF</span></div>
+     <div style="--c:var(--c-amont)"><b>Recyclage</b><span>Pu → MOX · U → URT</span></div>
+     <div style="--c:var(--c-andra)"><b>Déchets</b><span>CSD-V, CSD-C → entreposage, Cigéo</span></div>
+    </div>
+   </section>
+   <div class="foot-note">
+    <div class="foot-id"><span class="tiin-logos"><span class="logo-plate"><img src="icons/logo-tocqueville.png" alt="Lycée Alexis de Tocqueville — Métiers de l’industrie et du nucléaire" width="541" height="465"></span><span class="logo-plate"><img src="icons/logo-bac-pro-tiin.svg" alt="Bac Pro TIIN" width="412" height="133"></span></span><p>Techniques d’interventions sur installations nucléaires · Lycée Alexis de Tocqueville, Cherbourg-en-Cotentin.</p></div>
+    <p>Schémas fonctionnels et valeurs d’ordre de grandeur, sans valeur d’exploitation. Les exercices sont fictifs et ne remplacent aucune procédure d’installation.</p>
+    <p class="credit">Conception originale : Xavier Le Pallabre<br>Ressource pédagogique développée à titre personnel, avec l’assistance d’outils d’intelligence artificielle.<br>© 2026 Xavier Le Pallabre — Attribution de l’auteur original à conserver lors des réutilisations et adaptations, conformément à la licence applicable. Licence <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr" rel="license noopener" target="_blank">CC BY-NC-SA 4.0</a>.</p>
+    <p>Raccourcis clavier : <kbd>Alt</kbd>+<kbd>1</kbd> ou <kbd>2</kbd> pour changer de parcours, <kbd>Alt</kbd>+<kbd>0</kbd> pour revenir à l’accueil, <kbd>Alt</kbd>+<kbd>R</kbd> pour la relecture.</p>
+    <p>Le cycle amont, le réacteur, la sûreté et les accidents sont traités dans l’application <a href="https://xavierlepallabre-cmyk.github.io/Surete-cycle-tiin/" target="_blank" rel="noopener">Sûreté &amp; Cycle TIIN</a>.</p>
+   </div>
+  </div>
+ </section>
+</main>
+
+<nav class="tabbar" id="tabbar" aria-label="Parcours"></nav>
+<aside class="rev" id="rev" aria-labelledby="revTitle" hidden>
+ <div class="rev-head"><h2 id="revTitle"><svg class="i"><use href="#i-pen"/></svg>Relecture</h2><button class="ib" type="button" id="revClose" aria-label="Fermer la relecture"><svg class="i"><use href="#i-x"/></svg></button></div>
+ <div class="rev-body">
+  <label class="rev-f">Relecteur <input id="revWho" type="text" autocomplete="name" placeholder="Nom, fonction (facultatif)"></label>
+  <div class="rev-ctx"><span>Endroit concerné</span><b id="revCtx">Accueil</b></div>
+  <div class="rev-kinds" role="radiogroup" aria-label="Type de remarque" id="revKinds"></div>
+  <label class="rev-f">Remarque <textarea id="revTxt" rows="4" placeholder="Ce qui est faux ou imprécis, et la bonne version si possible (avec la source)."></textarea></label>
+  <button class="btn primary" type="button" id="revAdd"><svg class="i"><use href="#i-check"/></svg>Ajouter la remarque</button>
+  <h3 class="rev-h3" id="revCount">Aucune remarque pour l’instant</h3>
+  <ol class="rev-list" id="revList"></ol>
+ </div>
+ <div class="rev-foot">
+  <button class="btn primary" type="button" id="revDl"><svg class="i"><use href="#i-dl"/></svg>Télécharger le fichier</button>
+  <button class="btn" type="button" id="revCopy">Copier le texte</button>
+  <button class="btn ghost" type="button" id="revClear">Tout effacer</button>
+ </div>
+</aside>
+<div class="updbar" id="updateBar" role="status" hidden>Une nouvelle version est disponible. <button type="button" id="updateBtn">Mettre à jour</button></div>
+
+<script>
+"use strict";
+const PAGES=[
+ {id:'hague',file:'lahague.html',c:'--c-hague',ic:'i-hague',num:'1 · Traitement',name:'La Hague',sub:'Traitement du combustible usé',short:'La Hague',desc:'Réception, piscines, cisaillage, dissolution, extraction, purification de l’uranium et du plutonium, vitrification, compactage, effluents et ventilation.',meta:'10 vues · cisaille et roue animées',fig:'≈ 95 % U · ≈ 1 % Pu · ≈ 4 % PF'},
+ {id:'andra',file:'andra.html',c:'--c-andra',ic:'i-andra',num:'2 · Déchets',name:'Andra',short:'Andra',sub:'Gestion et stockage des déchets',desc:'Classement de VTC à HA, colis, Cires, CSA, CSM, Cigéo et laboratoire de Bure, surveillance et mémoire, atelier déchets.',meta:'9 vues · atelier décisionnel',fig:'HA : < 1 % du volume, ≈ 97 % de l’activité'},
+];
+const $=id=>document.getElementById(id),main=$('main'),frames={},root=document.documentElement;
+const ico=(id,cls='i')=>`<svg class="${cls}"><use href="#${id}"/></svg>`;
+const store={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let seen=new Set(store.get('aval-seen',[])),current=null;
+const STANDALONE=(()=>{try{return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}catch(e){return false}})();
+
+/* ---------- Construction de la navigation ---------- */
+$('switch').insertAdjacentHTML('beforeend',PAGES.map((p,i)=>`<button type="button" data-go="${p.id}" style="--c:var(${p.c})">${ico(p.ic)}${p.name}</button>`).join(''));
+$('tabbar').innerHTML=`<button type="button" data-go="home" style="--c:var(--accent)">${ico('i-home')}Accueil</button>`+PAGES.map(p=>`<button type="button" data-go="${p.id}" style="--c:var(${p.c})">${ico(p.ic)}${p.short}</button>`).join('');
+const card=p=>`<button class="card" type="button" data-go="${p.id}" style="--c:var(${p.c})"><span class="top"><span class="tile">${ico(p.ic,'')}</span><span><span class="num">${p.num}</span><h3>${p.name}</h3></span></span><p>${p.desc}</p><span class="foot"><span>${p.meta}</span><span class="go" data-seen="${p.id}">Ouvrir ${ico('i-arrow')}</span></span></button>`;
+$('cards').innerHTML=PAGES.filter(p=>!p.x).map(card).join('');
+
+/* ---------- Schéma d’accueil ---------- */
+(function flow(){
+ const INFO={reacteur:'<b>Réacteur</b> · après 3 à 5 ans en cœur, les assemblages usés refroidissent en piscine avant leur transport vers La Hague',
+  recyclage:'<b>Recyclage</b> · le plutonium devient du combustible MOX ; l’uranium de retraitement (URT) peut être réenrichi. Détails dans La Hague, chapitre 3'};
+ const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ if(!reduce){const L=[['f1',4,9],['f2',3,8],['f3',3,12],['f4',3,7]];
+  $('particles').innerHTML=L.map(([id,n,d])=>Array.from({length:n},(_,i)=>`<circle class="particle" r="${i%2?3:4}" opacity="${i%2?.65:.95}"><animateMotion dur="${d}s" repeatCount="indefinite" begin="-${(i*d/n).toFixed(2)}s"><mpath href="#${id}"/></animateMotion></circle>`).join('')).join('');}
+ const cap=$('caption'),def=cap.innerHTML;
+ document.querySelectorAll('#orbit .st').forEach(g=>{const p=PAGES.find(x=>x.id===g.dataset.go);
+  const on=()=>{cap.innerHTML=p?`<b>${p.name}</b> · ${p.fig}`:INFO[g.dataset.info];};const off=()=>{cap.innerHTML=def;};
+  g.addEventListener('mouseenter',on);g.addEventListener('focus',on);g.addEventListener('mouseleave',off);g.addEventListener('blur',off);
+  g.addEventListener('click',()=>{if(!p){on();}});
+  g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();p?show(p.id):on();}});});
+ if(!reduce){let k=0;const big=[...document.querySelectorAll('#stations .st.big')];setInterval(()=>{if(current)return;big.forEach((g,i)=>g.classList.toggle('hot',i===k%big.length));k++;},2200);}
+})();
+
+/* ---------- Progression ---------- */
+function renderSeen(){
+ document.querySelectorAll('[data-seen]').forEach(el=>{const id=el.dataset.seen;el.innerHTML=seen.has(id)?`<span class="badge">${ico('i-check')}Déjà ouvert</span>`:`Ouvrir ${ico('i-arrow')}`;});
+ document.querySelectorAll('[data-dot]').forEach(el=>el.toggleAttribute('hidden',!seen.has(el.dataset.dot)));
+ $('seenCount').textContent=seen.size?`${seen.size} parcours ouvert${seen.size>1?'s':''} sur ${PAGES.length}`:`${PAGES.length} parcours · 19 vues animées · hors connexion`;
+ $('pbar').innerHTML=PAGES.map(pg=>`<i style="--c:var(${pg.c})"${seen.has(pg.id)?' class="on"':''}></i>`).join('');
+ const last=store.get('aval-last',null),next=PAGES.find(p=>!seen.has(p.id));
+ const target=last&&PAGES.find(p=>p.id===last)||null;
+ if(!seen.size){$('ctaTxt').textContent='Commencer par La Hague';$('ctaGo').dataset.go='hague';}
+ else if(target){$('ctaTxt').innerHTML=`Reprendre : ${target.name}`;$('ctaGo').dataset.go=target.id;}
+ else if(next){$('ctaTxt').textContent=`Continuer : ${next.name}`;$('ctaGo').dataset.go=next.id;}
+}
+
+/* ---------- Thème, partagé avec tous les parcours ---------- */
+const sysDark=()=>{try{return matchMedia('(prefers-color-scheme: dark)').matches}catch(e){return true}};
+const theme=()=>root.dataset.theme||(sysDark()?'dark':'light');
+function applyTheme(t,save){if(save){root.dataset.theme=t;try{localStorage.setItem('aval-theme',t)}catch(e){}}
+ $('themeBtn').innerHTML=ico(t==='dark'?'i-sun':'i-moon');$('themeBtn').setAttribute('aria-label',t==='dark'?'Passer en thème clair':'Passer en thème sombre');
+ for(const k in frames)pushTheme(frames[k]);}
+function pushTheme(f){try{const w=f.contentWindow;if(w&&typeof w.setTheme==='function')w.setTheme(theme());}catch(e){}}
+$('themeBtn').onclick=()=>applyTheme(theme()==='dark'?'light':'dark',true);
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(!root.dataset.theme)applyTheme(theme(),false)})}catch(e){}
+
+/* ---------- Intégration des parcours dans l’application ---------- */
+const EMBED_CSS=`
+html.in-app .top{display:none!important}
+html.in-app.p-rep .top{display:flex!important;padding-block:8px!important}
+html.in-app.p-rep .top>div:first-child,html.in-app.p-rep #themeBtn{display:none!important}
+html.in-app .footer{opacity:.8}
+@media(max-width:760px){
+ html.in-app .nav,html.in-app .tabs,html.in-app #filters,html.in-app .steps,html.in-app .s7tabs,html.in-app #s7launch{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+ html.in-app .nav::-webkit-scrollbar,html.in-app .tabs::-webkit-scrollbar,html.in-app #filters::-webkit-scrollbar,html.in-app .steps::-webkit-scrollbar{display:none}
+ html.in-app .nav>*,html.in-app .tabs>*,html.in-app #filters>*,html.in-app .steps>*,html.in-app .s7tabs>*{flex:0 0 auto;scroll-snap-align:start}
+ html.in-app .nav .sep{display:none}
+ html.in-app .bar{flex-wrap:wrap}
+ html.in-app .bar>.grp:first-child{flex:1 1 100%;min-width:0}
+ html.in-app #filters{flex:1 1 100%}
+ html.in-app #filters>.note{flex:0 0 calc(100vw - 40px);white-space:normal}
+ html.in-app .stage,html.in-app .drawing{overflow-x:auto;-webkit-overflow-scrolling:touch}
+ html.in-app .stage>svg,html.in-app .drawing>svg{min-width:760px}
+ html.in-app .stage::before,html.in-app .drawing::before{content:"↔  Faites glisser pour voir tout le schéma";position:sticky;left:10px;display:block;width:max-content;margin:10px 0 2px 10px;padding:5px 12px;border-radius:999px;font:600 12px Lexend,system-ui,sans-serif;background:var(--btn-active);color:var(--text);border:1px solid var(--border);z-index:2}
+ html.in-app .nav button,html.in-app .chip,html.in-app .sbtn,html.in-app .tabs button{min-height:40px}
+}`;
+function embed(f,id){try{const d=f.contentDocument;if(!d)return;const h=d.documentElement;h.classList.add('in-app','p-'+id);
+  if(!d.getElementById('sct-embed')){const s=d.createElement('style');s.id='sct-embed';s.textContent=EMBED_CSS;d.head.appendChild(s);}
+  pushTheme(f);hookLinks(f);syncPause();}catch(e){}}
+const FILE2ID=Object.fromEntries(PAGES.map(p=>[p.file,p.id]));
+/* Un lien vers un autre parcours, cliqué dans une page, ouvre ce parcours dans l’application. */
+function hookLinks(f){try{const d=f.contentDocument;if(!d||d.__hooked)return;d.__hooked=true;
+ d.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href]');if(!a)return;const file=(a.getAttribute('href')||'').split('#')[0].split('/').pop();
+  if(file==='index.html'){e.preventDefault();show(null);return;}if(FILE2ID[file]){e.preventDefault();show(FILE2ID[file]);return;}
+  const EXT={'amont.html':'amont','rep1300.html':'rep','surete.html':'surete','accidents.html':'accidents'};
+  if(EXT[file]){e.preventDefault();window.open('https://xavierlepallabre-cmyk.github.io/Surete-cycle-tiin/#'+EXT[file],'_blank','noopener');}});}catch(e){}}
+
+/* ---------- Animations (sauf simulateur, qui a son propre « Figer le temps ») ---------- */
+function frameWin(){try{return current&&frames[current]?frames[current].contentWindow:null}catch(e){return null}}
+function syncPause(){const w=frameWin(),btn=$('pauseBtn');const ok=current&&current!=='rep'&&w&&typeof w.setPaused==='function';btn.hidden=!ok;if(!ok)return;
+ const paused=w.document.body.classList.contains('paused');btn.innerHTML=ico(paused?'i-play':'i-pause');btn.setAttribute('aria-pressed',String(paused));btn.setAttribute('aria-label',paused?'Relancer les animations':'Mettre en pause les animations');}
+$('pauseBtn').onclick=()=>{const w=frameWin();if(!w)return;try{w.setPaused(!w.document.body.classList.contains('paused'))}catch(e){}syncPause();};
+
+/* ---------- Navigation ---------- */
+function moveIndicator(){const ind=$('ind'),b=document.querySelector('#switch button[aria-current="page"]');
+ if(!b){ind.style.opacity=0;return;}ind.style.opacity=1;ind.style.width=b.offsetWidth+'px';ind.style.transform=`translateX(${b.offsetLeft}px)`;}
+function show(id){
+ const p=PAGES.find(x=>x.id===id)||null;current=p?p.id:null;
+ $('home').classList.toggle('off',!!p);$('home').inert=!!p;
+ for(const k in frames)frames[k].classList.toggle('on',k===current);
+ if(p&&!frames[p.id]){const f=document.createElement('iframe');f.className='frame';f.src=p.file;f.title=p.name+' — '+p.sub;
+  $('loader').classList.add('on');
+  f.addEventListener('load',()=>{embed(f,p.id);$('loader').classList.remove('on');requestAnimationFrame(()=>f.classList.toggle('on',current===p.id));});
+  main.appendChild(f);frames[p.id]=f;}
+ document.querySelectorAll('#switch [data-go],#tabbar [data-go]').forEach(b=>b.toggleAttribute('aria-current',(b.dataset.go===current)||(!current&&b.dataset.go==='home')));
+ document.querySelectorAll('[aria-current]').forEach(b=>{if(b.hasAttribute('aria-current'))b.setAttribute('aria-current','page')});
+ $('where').textContent=p?p.name:'Accueil';
+ document.title=p?`${p.name} · Cycle aval TIIN`:'Cycle aval TIIN';
+ $('openBtn').hidden=!p||STANDALONE;if(p)$('openBtn').href=p.file;
+ if(p){seen.add(p.id);store.set('aval-seen',[...seen]);store.set('aval-last',p.id);}
+ renderSeen();moveIndicator();syncPause();
+ try{history.replaceState(null,'',p?'#'+p.id:location.pathname);}catch(e){}
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(!b)return;const g=b.dataset.go;show(g==='home'?null:g);});
+$('homeBtn').onclick=()=>show(null);
+addEventListener('resize',moveIndicator);
+addEventListener('keydown',e=>{if(!e.altKey)return;const n=+e.key;if(n>=1&&n<=PAGES.length){e.preventDefault();show(PAGES[n-1].id);}if(e.key==='0'){e.preventDefault();show(null);}});
+addEventListener('hashchange',()=>{const h=(location.hash||'').slice(1);show(PAGES.some(p=>p.id===h)?h:null);});
+
+/* ---------- Relecture : une remarque, rattachée à l’endroit exact ---------- */
+const REV_KEY='aval-relecture',KINDS=['Erreur','Imprécision','Formulation','Schéma','Source','Suggestion'];
+let rev=store.get(REV_KEY,[]),kind='Erreur',revTimer=null;
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function where(){
+ if(!current)return{page:'Accueil',ref:'',txt:'Accueil de l’application'};
+ const p=PAGES.find(x=>x.id===current),w=frameWin();let o={page:p.name,ref:'',txt:p.name+' · vue d’ensemble'};
+ try{const r=w.eval(`(()=>{const v=typeof cur!=='undefined'?cur:'syn',s=typeof step!=='undefined'?step:0;
+   if(v==='syn')return{v};const V=VIEWS[v]||{},n=(V.steps||[]).length,CH=window.CHAPTERS||[];let num='';
+   CH.forEach((c,i)=>{const k=c.vues.indexOf(v);if(k>=0)num=(i+1)+'.'+(k+1)});
+   return{v,num,lab:(typeof NAV_LABEL!=='undefined'&&NAV_LABEL[v])||v,s,n,st:s>0&&V.steps&&V.steps[s-1]?V.steps[s-1].t:''}})()`);
+  if(r&&r.v!=='syn'){o.ref=(r.num?r.num+' ':'')+r.lab;
+   o.txt=`${p.name} › ${o.ref}`+(r.n?(r.s>0?` › étape ${r.s}/${r.n}${r.st?' : '+r.st:''}`:' › présentation'):'');}
+ }catch(e){}
+ return o;}
+function revSave(){store.set(REV_KEY,rev);}
+function revRender(){
+ $('revN').hidden=!rev.length;$('revN').textContent=rev.length;
+ $('revCount').textContent=rev.length?`${rev.length} remarque${rev.length>1?'s':''} sur cet appareil`:'Aucune remarque pour l’instant';
+ $('revList').innerHTML=rev.map((r,i)=>`<li><div class="w"><b>${esc(r.ou)}</b><span class="k">${esc(r.type)}</span></div><p>${esc(r.texte)}</p><button type="button" class="del" data-del="${i}">Supprimer</button></li>`).reverse().join('');
+ $('revDl').disabled=$('revCopy').disabled=$('revClear').disabled=!rev.length;}
+$('revKinds').innerHTML=KINDS.map(k=>`<button type="button" role="radio" aria-checked="${k===kind}" data-k="${k}">${k}</button>`).join('');
+$('revKinds').onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;kind=b.dataset.k;$('revKinds').querySelectorAll('[data-k]').forEach(x=>x.setAttribute('aria-checked',String(x===b)));};
+const refreshWhere=()=>{$('revCtx').textContent=where().txt;};
+function revOpen(){ $('rev').hidden=false;document.body.classList.add('rev-open');refreshWhere();clearInterval(revTimer);revTimer=setInterval(refreshWhere,800);
+ $('revWho').value=store.get('aval-relecteur','');revRender();setTimeout(()=>$('revTxt').focus(),50);}
+function revClose(){ $('rev').hidden=true;document.body.classList.remove('rev-open');clearInterval(revTimer);}
+$('revBtn').onclick=()=>$('rev').hidden?revOpen():revClose();$('revClose').onclick=revClose;$('ctaRev').onclick=revOpen;
+document.querySelectorAll('[data-rev="open"]').forEach(b=>b.onclick=revOpen);
+$('revWho').onchange=()=>store.set('aval-relecteur',$('revWho').value.trim());
+$('revAdd').onclick=()=>{const t=$('revTxt').value.trim();if(!t){$('revTxt').focus();return;}const w=where();
+ rev.push({ou:w.txt,page:w.page,ref:w.ref,type:kind,texte:t,date:new Date().toISOString()});revSave();$('revTxt').value='';revRender();
+ $('revAdd').textContent='Remarque ajoutée ✓';setTimeout(()=>{$('revAdd').innerHTML=`<svg class="i"><use href="#i-check"/></svg>Ajouter la remarque`;},1400);};
+$('revList').onclick=e=>{const b=e.target.closest('[data-del]');if(!b)return;rev.splice(+b.dataset.del,1);revSave();revRender();};
+$('revClear').onclick=()=>{if(confirm('Effacer toutes les remarques de cet appareil ?')){rev=[];revSave();revRender();}};
+function revText(){const who=$('revWho').value.trim()||'(non précisé)',d=new Date();
+ let t=`# Relecture — Cycle aval TIIN\n\nRelecteur : ${who}\nDate : ${d.toLocaleDateString('fr-FR')}\nApplication : ${location.origin+location.pathname}\nNombre de remarques : ${rev.length}\n`;
+ for(const pg of ['Accueil',...PAGES.map(p=>p.name)]){const L=rev.filter(r=>r.page===pg);if(!L.length)continue;
+  t+=`\n## ${pg}\n\n`+L.map((r,i)=>`${i+1}. [${r.type}] ${r.ou}\n   ${r.texte.replace(/\n/g,'\n   ')}`).join('\n\n')+'\n';}
+ return t;}
+$('revDl').onclick=()=>{const blob=new Blob([revText()],{type:'text/markdown;charset=utf-8'}),a=document.createElement('a');
+ a.href=URL.createObjectURL(blob);a.download=`relecture-cycle-aval-${new Date().toISOString().slice(0,10)}.md`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);};
+$('revCopy').onclick=async()=>{try{await navigator.clipboard.writeText(revText());$('revCopy').textContent='Copié ✓';}catch(e){$('revCopy').textContent='Copie impossible';}setTimeout(()=>{$('revCopy').textContent='Copier le texte';},1500);};
+addEventListener('keydown',e=>{if(e.altKey&&(e.key==='r'||e.key==='R')){e.preventDefault();$('rev').hidden?revOpen():revClose();}if(e.key==='Escape'&&!$('rev').hidden)revClose();});
+revRender();
+
+applyTheme(theme(),false);
+const start=(location.hash||'').slice(1);show(PAGES.some(p=>p.id===start)?start:null);
+</script>
+</body></html>

@@ -1,0 +1,71 @@
+/* Cycle aval TIIN — service worker
+   Projet indépendant des autres applications TIIN : préfixe de cache propre, portée limitée au dossier du site.
+   VERSION est calculée par « python tools/version.py » à partir du contenu des fichiers :
+   la lancer avant chaque publication (le test « python tests/test_site.py » le vérifie). */
+const VERSION = 'cdc53159ee';
+const PREFIX = 'cycle-aval-tiin-';
+const CACHE = PREFIX + VERSION;
+const ASSETS = [
+  './',
+  './index.html',
+  './lahague.html',
+  './andra.html',
+  './manifest.json',
+  './charte.css',
+  './icons/icon.svg',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable-512.png',
+  './icons/apple-touch-icon.png',
+  './icons/logo-bac-pro-tiin.svg',
+  './icons/logo-tocqueville.png',
+  './fonts/lexend.css',
+  './fonts/lexend-0.ttf',
+  './fonts/lexend-1.ttf',
+  './fonts/lexend-2.ttf',
+  './fonts/lexend-3.ttf',
+  './fonts/lexend-4.ttf'
+];
+
+/* Installation : tout est téléchargé depuis le serveur (jamais depuis le cache HTTP),
+   pour ne pas mélanger des fichiers de deux versions. */
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE).then(cache => cache.addAll(ASSETS.map(url => new Request(url, { cache: 'reload' }))))
+  );
+});
+
+/* La nouvelle version ne s'active que lorsque l'utilisateur accepte la mise à jour. */
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'ACTIVATE_UPDATE') self.skipWaiting();
+});
+
+/* Activation : suppression des anciennes versions de CE site uniquement. */
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k.startsWith(PREFIX) && k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+
+/* Cache d'abord : le site fonctionne entièrement hors connexion. */
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    const hit = await cache.match(request, { ignoreSearch: true });
+    if (hit) return hit;
+    try {
+      const response = await fetch(request);
+      if (response.ok && url.pathname.startsWith(new URL(self.registration.scope).pathname)) cache.put(request, response.clone());
+      return response;
+    } catch (error) {
+      if (request.mode === 'navigate') return (await cache.match('./index.html')) || Response.error();
+      throw error;
+    }
+  })());
+});
